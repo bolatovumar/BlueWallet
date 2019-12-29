@@ -6,7 +6,8 @@ import { Icon } from 'react-native-elements';
 import ImagePicker from 'react-native-image-picker';
 import PropTypes from 'prop-types';
 import { useNavigationParam, useNavigation } from 'react-navigation-hooks';
-import FilePickerManager from 'react-native-file-picker';
+import DocumentPicker from 'react-native-document-picker';
+import RNFS from 'react-native-fs';
 const LocalQRCode = require('@remobile/react-native-qrcode-local-image');
 
 const ScanQRCode = ({
@@ -34,22 +35,24 @@ const ScanQRCode = ({
     setIsLoading(false);
   };
 
-  const showFilePicker = () => {
+  const showFilePicker = async () => {
     setIsLoading(true);
-    FilePickerManager.showFilePicker(null, response => {
-      console.log('Response = ', response);
-
-      if (response.didCancel) {
-        console.log('User cancelled file picker');
-      } else if (response.error) {
-        console.log('FilePickerManager Error: ', response.error);
+    try {
+      const res = await DocumentPicker.pick();
+      const file = await RNFS.readFile(res.uri);
+      const fileParsed = JSON.parse(file);
+      if (fileParsed.keystore.xpub) {
+        onBarCodeRead({ data: fileParsed.keystore.xpub });
       } else {
-        this.setState({
-          file: response,
-        });
+        throw new Error();
+      }
+    } catch (err) {
+      if (!DocumentPicker.isCancel(err)) {
+        alert('The selected file does not contain a wallet that can be imported.');
       }
       setIsLoading(false);
-    });
+    }
+    setIsLoading(false);
   };
 
   useEffect(() => {}, [cameraPreviewIsPaused]);
